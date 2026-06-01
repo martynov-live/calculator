@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Калькулятор</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #000000;
+      --btn-digit:  #333333;
+      --btn-func:   #a5a5a5;
+      --btn-op:     #ff9f0a;
+      --btn-op-alt: #ffffff;
+      --text-digit: #ffffff;
+      --text-func:  #000000;
+      --text-op:    #ffffff;
+      --display-bg: #000000;
+      --history-c:  rgba(255,255,255,0.45);
+      --shadow:     0 32px 80px rgba(0,0,0,.8);
+      --radius-btn: 50%;
+      --btn-size:   72px;
+      --gap:        10px;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      min-height: 100%;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 20px;
+      background: radial-gradient(ellipse at 50% 30%, #1a1a2e 0%, #0a0a0a 70%);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .calc-wrap {
+      position: relative;
+    }
+
+    /* Subtle glow behind the calculator */
+    .calc-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -40px;
+      border-radius: 60px;
+      background: radial-gradient(ellipse, rgba(255,159,10,.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .calc {
+      /* width = 4 buttons + 3 gaps + 2×18px side padding */
+      width: calc(4 * var(--btn-size) + 3 * var(--gap) + 36px);
+      background: var(--bg);
+      border-radius: 44px;
+      padding: 22px 18px 22px;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Display ── */
+    .display {
+      padding: 0 6px 20px;
+      min-height: 126px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .history {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--history-c);
+      text-align: right;
+      min-height: 22px;
+      letter-spacing: -0.2px;
+      transition: opacity 0.2s;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    .main-display {
+      font-size: 3.6rem;
+      font-weight: 300;
+      color: #ffffff;
+      text-align: right;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+      transition: font-size 0.1s;
+    }
+
+    .main-display.shrink-1 { font-size: 3rem; letter-spacing: -1.5px; }
+    .main-display.shrink-2 { font-size: 2.2rem; letter-spacing: -1px; }
+
+    /* ── Button grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, var(--btn-size));
+      grid-template-rows: repeat(5, var(--btn-size));
+      gap: var(--gap);
+      justify-content: center;
+    }
+
+    /* ── Buttons ── */
+    button {
+      width: var(--btn-size);
+      height: var(--btn-size);
+      border: none;
+      border-radius: var(--radius-btn);
+      font-family: inherit;
+      font-size: 1.55rem;
+      font-weight: 400;
+      cursor: pointer;
+      outline: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: filter 0.08s, transform 0.08s;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active { transform: scale(0.93); filter: brightness(1.25); }
+
+    /* Digit buttons */
+    .btn-digit {
+      background: var(--btn-digit);
+      color: var(--text-digit);
+    }
+    .btn-digit:hover { filter: brightness(1.18); }
+
+    /* Zero spans 2 columns */
+    .btn-zero {
+      width: calc(var(--btn-size) * 2 + var(--gap));
+      border-radius: 36px;
+      justify-content: flex-start;
+      padding-left: 28px;
+      letter-spacing: 0;
+    }
+
+    /* Function buttons (AC, +/−, %) */
+    .btn-func {
+      background: var(--btn-func);
+      color: var(--text-func);
+      font-weight: 500;
+    }
+    .btn-func:hover { filter: brightness(0.88); }
+
+    /* Operator buttons */
+    .btn-op {
+      background: var(--btn-op);
+      color: var(--text-op);
+      font-size: 1.9rem;
+      font-weight: 300;
+    }
+    .btn-op:hover { filter: brightness(1.12); }
+
+    /* Active operator (pressed/selected) */
+    .btn-op.active {
+      background: var(--btn-op-alt);
+      color: var(--btn-op);
+    }
+
+    /* ── Keyboard hint ── */
+    .hint {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,.18);
+      letter-spacing: 0.3px;
+    }
+
+    /* ── Backspace button in display ── */
+    .display { position: relative; }
+
+    .bs-btn {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.28);
+      font-size: 1.35rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.14s, background 0.14s;
+      line-height: 1;
+    }
+    .bs-btn:hover  { color: rgba(255,255,255,.75); background: rgba(255,255,255,.1); }
+    .bs-btn:active { transform: scale(0.86); filter: none; }
+
+    /* ── Compact on shorter viewports ── */
+    @media (max-height: 720px) {
+      :root         { --btn-size: 64px; --gap: 9px; }
+      body          { padding: 20px 16px; }
+      .calc         { padding: 18px 16px; border-radius: 38px;
+                      width: calc(4 * var(--btn-size) + 3 * var(--gap) + 32px); }
+      .display      { min-height: 110px; padding-bottom: 16px; }
+      .main-display { font-size: 3.1rem; }
+      .hint         { margin-top: 12px; }
+    }
+
+    @media (max-height: 620px) {
+      :root         { --btn-size: 56px; --gap: 8px; }
+      body          { padding: 14px; }
+      .calc         { padding: 14px; border-radius: 32px;
+                      width: calc(4 * var(--btn-size) + 3 * var(--gap) + 28px); }
+      .display      { min-height: 90px; padding-bottom: 12px; }
+      .main-display { font-size: 2.7rem; }
+      .btn-zero     { padding-left: 22px; }
+      .hint         { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="calc-wrap">
+  <div class="calc">
+    <div class="display">
+      <button class="bs-btn" id="btn-bs" title="Удалить цифру">⌫</button>
+      <div class="history" id="history"></div>
+      <div class="main-display" id="display">0</div>
+    </div>
+
+    <div class="grid">
+      <!-- Row 1 -->
+      <button class="btn-func" id="btn-ac"  data-action="clear">AC</button>
+      <button class="btn-func" data-action="sign">+/−</button>
+      <button class="btn-func" data-action="percent">%</button>
+      <button class="btn-op"   data-action="op" data-op="÷">÷</button>
+
+      <!-- Row 2 -->
+      <button class="btn-digit" data-action="digit" data-digit="7">7</button>
+      <button class="btn-digit" data-action="digit" data-digit="8">8</button>
+      <button class="btn-digit" data-action="digit" data-digit="9">9</button>
+      <button class="btn-op"    data-action="op" data-op="×">×</button>
+
+      <!-- Row 3 -->
+      <button class="btn-digit" data-action="digit" data-digit="4">4</button>
+      <button class="btn-digit" data-action="digit" data-digit="5">5</button>
+      <button class="btn-digit" data-action="digit" data-digit="6">6</button>
+      <button class="btn-op"    data-action="op" data-op="−">−</button>
+
+      <!-- Row 4 -->
+      <button class="btn-digit" data-action="digit" data-digit="1">1</button>
+      <button class="btn-digit" data-action="digit" data-digit="2">2</button>
+      <button class="btn-digit" data-action="digit" data-digit="3">3</button>
+      <button class="btn-op"    data-action="op" data-op="+">+</button>
+
+      <!-- Row 5 -->
+      <button class="btn-digit btn-zero" data-action="digit" data-digit="0">0</button>
+      <button class="btn-digit" data-action="dot">.</button>
+      <button class="btn-op"    data-action="equals">=</button>
+    </div>
+
+    <div class="hint">Поддерживаются клавиши клавиатуры</div>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────
+  let current    = '0';   // number on display
+  let stored     = null;  // first operand
+  let pendingOp  = null;  // pending operator
+  let justEquals = false; // equals was just pressed
+  let justOp     = false; // operator was just pressed (next digit replaces display)
+  let historyStr = '';
+
+  // ── DOM ────────────────────────────────────────────────────────
+  const displayEl = document.getElementById('display');
+  const historyEl = document.getElementById('history');
+  const acBtn     = document.getElementById('btn-ac');
+
+  // ── Display helpers ────────────────────────────────────────────
+
+  function formatNumber(n) {
+    if (!isFinite(n)) return n > 0 ? '∞' : (n < 0 ? '−∞' : 'Ошибка');
+    // Avoid floating-point noise: up to 10 significant digits
+    let s = parseFloat(n.toPrecision(10)).toString();
+    // Replace minus with proper dash
+    s = s.replace('-', '−');
+    // Add thousands separator only for integers
+    if (!s.includes('.') && !s.includes('e')) {
+      s = s.replace(/^(−?)(\d+)$/, (_, sign, digits) =>
+        sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+      );
+    }
+    return s;
+  }
+
+  function setDisplay(val) {
+    current = typeof val === 'number' ? String(val) : val;
+    const formatted = typeof val === 'number' ? formatNumber(val) : val.replace('-', '−');
+    displayEl.textContent = formatted;
+
+    // Shrink font if text is long
+    const len = formatted.replace(/\s/g, '').length;
+    displayEl.className = 'main-display';
+    if (len > 9)  displayEl.classList.add('shrink-1');
+    if (len > 12) displayEl.classList.add('shrink-2');
+  }
+
+  function setHistory(s) {
+    historyStr = s;
+    historyEl.textContent = s;
+  }
+
+  function updateAC() {
+    acBtn.textContent = (current !== '0' || stored !== null) ? 'C' : 'AC';
+  }
+
+  // ── Operator symbol map ────────────────────────────────────────
+  const SYM = { '÷': '÷', '×': '×', '−': '−', '+': '+' };
+
+  function opSymbol(op) { return SYM[op] || op; }
+
+  // ── Calculation ────────────────────────────────────────────────
+
+  function compute(a, op, b) {
+    switch (op) {
+      case '+':  return a + b;
+      case '−':  return a - b;
+      case '×':  return a * b;
+      case '÷':  return b === 0 ? (a === 0 ? NaN : Infinity * Math.sign(a)) : a / b;
+    }
+    return b;
+  }
+
+  // ── Actions ────────────────────────────────────────────────────
+
+  function actionDigit(d) {
+    if (justEquals || justOp) {
+      setDisplay(d === '0' ? '0' : d);
+      if (justEquals) { stored = null; pendingOp = null; setHistory(''); }
+      justEquals = false; justOp = false;
+    } else {
+      if (current === '0' && d !== '.') setDisplay(d);
+      else if (current.replace('−','').replace('.','').length < 12) setDisplay(current + d);
+    }
+    updateAC();
+  }
+
+  function actionDot() {
+    if (justEquals || justOp) {
+      setDisplay('0.');
+      if (justEquals) { stored = null; pendingOp = null; setHistory(''); }
+      justEquals = false; justOp = false;
+      return;
+    }
+    if (!current.includes('.')) setDisplay(current + '.');
+    updateAC();
+  }
+
+  function actionOp(op) {
+    const val = parseFloat(current.replace(/\s/g,'').replace('−', '-').replace(',', '.'));
+
+    // Chain operations
+    if (stored !== null && pendingOp !== null && !justOp && !justEquals) {
+      const result = compute(stored, pendingOp, val);
+      setDisplay(result);
+      setHistory(formatNumber(stored) + ' ' + opSymbol(pendingOp) + ' ' + formatNumber(val) + ' ' + opSymbol(op));
+      stored = result;
+    } else {
+      stored = justEquals ? parseFloat(displayEl.textContent.replace(/\s/g,'').replace('−','-')) : val;
+      setHistory(formatNumber(stored) + ' ' + opSymbol(op));
+    }
+
+    pendingOp  = op;
+    justOp     = true;
+    justEquals = false;
+
+    highlightOp(op);
+    updateAC();
+  }
+
+  function actionEquals() {
+    if (pendingOp === null) return;
+
+    const a = stored;
+    const b = parseFloat(current.replace(/\s/g,'').replace('−', '-').replace(',', '.'));
+    const result = compute(a, pendingOp, b);
+
+    setHistory(formatNumber(a) + ' ' + opSymbol(pendingOp) + ' ' + formatNumber(b) + ' =');
+    setDisplay(result);
+
+    stored     = a;        // keep for repeated equals (Apple behaviour)
+    justEquals = true;
+    justOp     = false;
+
+    clearHighlight();
+    updateAC();
+  }
+
+  function actionClear() {
+    if (current !== '0' && acBtn.textContent === 'C') {
+      setDisplay('0');
+    } else {
+      setDisplay('0');
+      stored = null; pendingOp = null;
+      setHistory('');
+      clearHighlight();
+    }
+    justEquals = false; justOp = false;
+    updateAC();
+  }
+
+  function actionSign() {
+    if (current === '0') return;
+    if (current.startsWith('−')) setDisplay(current.slice(1));
+    else setDisplay('−' + current);
+    updateAC();
+  }
+
+  function actionPercent() {
+    const val = parseFloat(current.replace(/\s/g,'').replace('−','-'));
+    const base = (stored !== null) ? stored : 100;
+    setDisplay(val / 100 * (pendingOp === '+' || pendingOp === '−' ? base : 1));
+    updateAC();
+  }
+
+  function actionBackspace() {
+    if (justEquals || justOp) return;
+    setDisplay(current.length > 1 ? current.slice(0, -1) : '0');
+    updateAC();
+  }
+
+  // ── Operator highlight ─────────────────────────────────────────
+
+  function clearHighlight() {
+    document.querySelectorAll('.btn-op').forEach(b => b.classList.remove('active'));
+  }
+
+  function highlightOp(op) {
+    clearHighlight();
+    document.querySelectorAll('.btn-op[data-op]').forEach(b => {
+      if (b.dataset.op === op) b.classList.add('active');
+    });
+  }
+
+  // ── Click handler ──────────────────────────────────────────────
+
+  document.querySelector('.grid').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // Clear operator highlight on any non-op press
+    const action = btn.dataset.action;
+    if (action !== 'op') clearHighlight();
+
+    switch (action) {
+      case 'digit':   actionDigit(btn.dataset.digit); break;
+      case 'dot':     actionDot();                    break;
+      case 'op':      actionOp(btn.dataset.op);       break;
+      case 'equals':  actionEquals();                 break;
+      case 'clear':   actionClear();                  break;
+      case 'sign':    actionSign();                   break;
+      case 'percent': actionPercent();                break;
+    }
+  });
+
+  // ── Keyboard support ───────────────────────────────────────────
+
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key;
+
+    if (k >= '0' && k <= '9') { actionDigit(k); return; }
+    if (k === '.' || k === ',') { actionDot(); return; }
+    if (k === '+')   { actionOp('+');  return; }
+    if (k === '-')   { actionOp('−'); return; }
+    if (k === '*')   { actionOp('×'); return; }
+    if (k === '/')   { e.preventDefault(); actionOp('÷'); return; }
+    if (k === '%')   { actionPercent(); return; }
+    if (k === 'Enter' || k === '=') { actionEquals(); return; }
+    if (k === 'Escape' || k === 'c' || k === 'C') { actionClear(); return; }
+    if (k === 'Backspace') { actionBackspace(); }
+  });
+
+  document.getElementById('btn-bs').addEventListener('click', () => {
+    clearHighlight();
+    actionBackspace();
+  });
+
+  // ── Init ───────────────────────────────────────────────────────
+  updateAC();
+</script>
+</body>
+</html>
